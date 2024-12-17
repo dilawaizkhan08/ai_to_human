@@ -38,7 +38,7 @@ This Flask web application generates human-like, conversational text using the O
 
 ## Usage
 
-1. Run the Streamlit app:
+1. Run the app:
     ```bash
     python3 test.py
     ```

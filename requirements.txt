@@ -7,4 +7,6 @@ langchain_community
 flask
 flask_cors
 openai
+nltk
+
 
