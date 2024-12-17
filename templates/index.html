@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Humanized AI Text Generator</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f6;
+            color: #333;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px 10px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        textarea, select, button {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 150px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            font-size: 1.1em;
+        }
+        .output strong {
+            color: #4CAF50;
+        }
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loading span {
+            margin-left: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        Humanized AI Text Generator
+    </header>
+    <div class="container">
+        <label for="paragraph">Enter a Paragraph:</label>
+        <textarea id="paragraph" placeholder="Type your paragraph here..."></textarea>
+
+        <button id="generate">Generate Humanized Text</button>
+
+        <div class="output" id="output"></div>
+    </div>
+
+    <script>
+        document.getElementById('generate').addEventListener('click', async () => {
+            const paragraph = document.getElementById('paragraph').value.trim();
+            const outputDiv = document.getElementById('output');
+
+            if (!paragraph) {
+                outputDiv.innerHTML = "<strong>Error:</strong> Please enter a paragraph before generating.";
+                outputDiv.style.color = "#FF0000";
+                return;
+            }
+
+            outputDiv.innerHTML = `<div class="loading"><img src="https://i.gifer.com/YCZH.gif" alt="Loading..." width="25"> <span>Generating... Please wait.</span></div>`;
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ paragraph}),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    outputDiv.innerHTML = `<strong>Humanized Text:</strong><br>${result.humanized_text}`;
+                } else {
+                    outputDiv.innerHTML = `<strong>Error:</strong> ${result.error}`;
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `<strong>Error:</strong> Unable to connect to the server.`;
+            }
+        });
+    </script>
+</body>
+</html>
