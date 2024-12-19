@@ -17,7 +17,7 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 if not client.api_key:
     raise ValueError("OPENAI_API_KEY is missing. Please set it in your .env file.")
 
-# Filler words, slang, and self-corrections
+# Constants
 FILLER_WORDS = ["well", "you know", "like", "I mean", "basically", "honestly"]
 SELF_CORRECTIONS = [
     "Actually, scratch that...",
@@ -41,7 +41,6 @@ IDIOMATIC_PHRASES = [
     "let's face it"
 ]
 
-
 # Functions
 def count_words(text):
     """Counts the number of words in a given text."""
@@ -52,21 +51,16 @@ def truncate_or_pad_text(text, target_word_count):
     words = text.split()
     current_word_count = len(words)
 
-    # If the text is too long, truncate it
     if current_word_count > target_word_count:
         return " ".join(words[:target_word_count])
-    
-    # If the text is too short, pad with filler words
     while current_word_count < target_word_count:
         words.append(random.choice(FILLER_WORDS))
         current_word_count += 1
-    
     return " ".join(words)
 
 def create_human_like_completion(prompt, word_count, model="gpt-4", temperature=0.9):
     """Generates text using OpenAI's GPT model while aiming for a specific word count."""
     try:
-        # Estimate tokens: 1 word ~ 1.3 tokens; adjust max_tokens dynamically
         max_tokens = int(word_count * 1.5)
         response = client.chat.completions.create(
             model=model,
@@ -83,8 +77,7 @@ def prepare_prompt_for_human_like_text(paragraph, human_seed=""):
     """Prepare a prompt to generate undetectable, human-like text."""
     human_seed_text = f"Here's how I'd put it: {human_seed}" if human_seed else ""
     return f"""
-Reword the following paragraph to sound natural and conversational, as if a regular person were explaining it casually. 
-Avoid overly formal language or robotic precision—let it flow naturally like a real conversation.
+Reword the following paragraph to sound natural and conversational, as if a regular person were explaining it casually.
 
 Key Instructions:
 1. Use contractions and light filler words like "you know," "well," "I guess," or "pretty much."
@@ -101,44 +94,36 @@ Original Paragraph:
 Rewritten Paragraph:
 """
 
-
 def post_process_text(text, target_word_count):
     """Adds imperfections, filler words, typos, tone shifts, and unfinished thoughts."""
     sentences = re.split(r'(?<=[.!?])\s+', text)
     processed_sentences = []
     
     for sentence in sentences:
-        # Random filler word at the start
         if random.random() < 0.3:
             sentence = f"{random.choice(FILLER_WORDS)}, {sentence}"
-
-        # Add self-corrections or unfinished thoughts
         if random.random() < 0.2:
             sentence += f" {random.choice(SELF_CORRECTIONS)}"
-        
-        # Introduce typos randomly
         for correct, typo in COMMON_TYPO_MISTAKES.items():
             if correct in sentence and random.random() < 0.2:
                 sentence = sentence.replace(correct, typo)
-        
-        # Introduce awkward phrasing or grammar errors
         if random.random() < 0.2:
-            sentence = re.sub(r"(\bthe\b)", "uh, the", sentence, count=1)  # Example error
-        
-        # Add unfinished thoughts
+            sentence = re.sub(r"(\bthe\b)", " the", sentence, count=1)
         if random.random() < 0.1:
             sentence += " ... I mean, never mind."
-
         processed_sentences.append(sentence)
-    
-    # Slight shuffle in sentence order to break structure
     if random.random() < 0.2:
         random.shuffle(processed_sentences)
-
     processed_text = " ".join(processed_sentences).strip()
-
-    # Normalize length to match target word count
     return truncate_or_pad_text(processed_text, target_word_count)
+
+def chunk_text(text, chunk_size, overlap=50):
+    """Splits text into chunks with overlap to ensure coherence."""
+    words = text.split()
+    chunks = []
+    for i in range(0, len(words), chunk_size - overlap):
+        chunks.append(" ".join(words[i:i + chunk_size]))
+    return chunks
 
 @app.route('/api/generate', methods=['POST'])
 def generate_text():
@@ -150,19 +135,19 @@ def generate_text():
         return jsonify({"error": "Paragraph is required"}), 400
 
     try:
-        # Calculate input paragraph word count
-        input_word_count = count_words(paragraph)
-
-        # Prepare the prompt and generate AI text
-        prompt = prepare_prompt_for_human_like_text(paragraph, human_seed)
-        ai_generated_text = create_human_like_completion(prompt, input_word_count)
-
-        # Post-process the text to match input length
-        humanized_text = post_process_text(ai_generated_text, input_word_count)
+        chunks = chunk_text(paragraph, chunk_size=100, overlap=20)
+        humanized_chunks = []
+        for chunk in chunks:
+            chunk_word_count = count_words(chunk)
+            prompt = prepare_prompt_for_human_like_text(chunk, human_seed)
+            ai_generated_text = create_human_like_completion(prompt, chunk_word_count)
+            humanized_chunk = post_process_text(ai_generated_text, chunk_word_count)
+            humanized_chunks.append(humanized_chunk)
+        humanized_text = " ".join(humanized_chunks)
         return jsonify({"humanized_text": humanized_text})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-# Routes
+
 @app.route('/')
 def serve_index():
     return render_template('index.html')
